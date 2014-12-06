@@ -1,6 +1,6 @@
 {
 	"name": "express-context",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Data encapsulation for express.",
 	"author": "Izaak Schroeder <izaak.schroeder@gmail.com>",
 	"keywords": [ "express", "context" ],
@@ -10,7 +10,7 @@
 		"type": "git",
 		"url": "https://github.com/izaakschroeder/express-context.git"
 	},
-	"main": "lib/header.js",
+	"main": "lib/contextualize.js",
 	"scripts": {
 		"test": "npm run lint && npm run spec && npm run coverage",
 		"spec": "NODE_PATH=lib NODE_ENV=test istanbul cover node_modules/.bin/_mocha -- -r test/helpers/chai -R spec test/spec",

@@ -11,31 +11,31 @@ describe('contextualize', function() {
 		this.app = express();
 	});
 
-	it('should', function() {
+	it('should construct with single property', function() {
 		contextualize('foo');
 	});
 
-	it('should', function() {
+	it('should construct with array of properties', function() {
 		contextualize([ 'foo', 'bar' ]);
 	});
 
-	it('should', function() {
+	it('should construct with explicit configuration object', function() {
 		contextualize({ properties: ['foo', 'bar' ] });
 	});
 
-	it('should fail on invalid properties', function() {
+	it('should fail when neither object nor string is given', function() {
 		expect(function() {
 			contextualize(5);
 		}).to.throw(TypeError);
 	});
 
-	it('should fail on invalid properties', function() {
+	it('should fail on when properties is not an array', function() {
 		expect(function() {
 			contextualize({ properties: true });
 		}).to.throw(TypeError);
 	});
 
-	it('should fail on invalid properties', function() {
+	it('should fail on when properties does not contain strings', function() {
 		expect(function() {
 			contextualize({ properties: [ 'yes', true ] });
 		}).to.throw(TypeError);
@@ -43,7 +43,7 @@ describe('contextualize', function() {
 
 	it('should fail if the context is not set', function(done) {
 		var context = contextualize('magic');
-		this.app.use(context.of(function x(req, res, next) {
+		this.app.use(context.for(function x(req, res, next) {
 			req.magic = 'lol';
 			next();
 		}));
@@ -56,20 +56,20 @@ describe('contextualize', function() {
 		var context = contextualize('foo');
 		this.app.use(context);
 
-		this.app.use(context.of(function a(req, res, next) {
+		this.app.use(context.for(function a(req, res, next) {
 			req.foo = 'bananas';
 			expect(req.foo).to.equal('bananas');
 			next();
 		}));
 
 		this.app.get('/', function(req, res) {
-			res.status(200).send(context.for(req));
+			res.status(200).send();
 		});
 
 		request(this.app).get('/').end(done);
 	});
 
-	it('should work lel', function(done) {
+	it('should produce correct contextualized values after', function(done) {
 		var context = contextualize({
 			properties: [ 'foo' ],
 			context: 'bananas'
@@ -77,18 +77,18 @@ describe('contextualize', function() {
 
 		this.app.use(context);
 
-		this.app.use(context.of(function a(req, res, next) {
+		this.app.use(context.for(function a(req, res, next) {
 			req.foo = 'bananas';
 			next();
 		}));
 
-		this.app.use(context.of(function b(req, res, next) {
+		this.app.use(context.for(function b(req, res, next) {
 			req.foo = 'apples';
 			next();
 		}));
 
 		this.app.get('/', function(req, res) {
-			res.status(200).send(context.for(req));
+			res.status(200).send(context.of(req));
 		});
 
 		request(this.app).get('/').expect(function(res) {
@@ -101,48 +101,115 @@ describe('contextualize', function() {
 
 	it('should generate names for anonymous functions', function() {
 		var context = contextualize('foo');
-		context.of(function() {
+		var fn = (function make() {
+			return function() { };
+		}());
+		context.for(fn);
+		expect(context.get(fn)).to.contain('anon');
+	});
 
+	describe('#of', function() {
+		it('should fail on non-contextualized objects', function() {
+			var context = contextualize('foo');
+			expect(function() {
+				context.of(function() {
+
+				});
+			}).to.throw(TypeError);
+		});
+
+		it('should return context object when context is array', function() {
+			var context = contextualize('foo');
+			var val = { context: { a: { foo: 1 }, b: { foo: 2 } } };
+			var res = context.of.call({ context: ['a', 'b'] }, val, true);
+			expect(res).to.have.deep.property('a.foo', 1);
+			expect(res).to.have.deep.property('b.foo', 2);
+		});
+
+		it('should return context object when requested', function() {
+			var context = contextualize('foo');
+			var val = { context: { a: { foo: 1 } } };
+			expect(context.of.call({ context: 'a' }, val, true))
+				.to.have.deep.property('a.foo', 1);
+		});
+
+		it('should return context value when context is string', function() {
+			var context = contextualize('foo');
+			var val = { context: { a: { foo: 1 } } };
+			expect(context.of.call({ context: 'a' }, val))
+				.to.have.property('foo', 1);
 		});
 	});
 
 	describe('#for', function() {
-		it('should fail on non-contextualized objects', function() {
-			var context = contextualize('foo');
-			expect(function() {
-				context.for(function() {
+		it('should return named middleware', function() {
 
-				});
-			}).to.throw(TypeError);
+			function test(req, res) {
+				res.status(200).send();
+			}
+
+			var context = contextualize('color');
+
+			expect(context.for(test)).to.be.instanceof(Function);
+			expect(context.get(test)).to.not.be.null;
+
 		});
 
-		it('should fail on non-contextualized objects', function() {
-			var context = contextualize('foo');
-			expect(function() {
-				context.for({ context: { } }, function() {
+		it('should inject local values to context chain', function(done) {
 
-				});
-			}).to.throw(TypeError);
+			function test(req, res, next) {
+				req.color = 'yellow';
+				next();
+			}
+
+			var context = contextualize('color');
+
+			context.set(test, 'myfoo');
+
+			this.app.use(context);
+			this.app.use(context.for(test));
+			this.app.use(function(req, res, next) {
+				var data = context.of(req);
+				expect(data).to.have.property('myfoo');
+				expect(data.myfoo).to.have.property('color', 'yellow');
+				next();
+			});
+			this.app.get('/', function(req, res) {
+				res.status(200).send();
+			});
+
+			request(this.app).get('/').expect(function(res) {
+				expect(res.statusCode).to.equal(200);
+			}).end(done);
 		});
-	});
 
-	describe('#of', function() {
-		it('should fail with no name', function() {
-			var context = contextualize('foo');
-			expect(function() {
-				context.of('', function() {
+		it('should work with arrays', function(done) {
+			function a(req, res, next) {
+				req.foo = 'bar';
+				next();
+			}
+			function b(req, res, next) {
+				req.foo = 'baz';
+				next();
+			}
 
-				});
-			}).to.throw(TypeError);
-		});
+			var context = contextualize('foo'),
+				ab = context.for([a, b]);
 
-		it('should fail with non-string name', function() {
-			var context = contextualize('foo');
-			expect(function() {
-				context.of(true, function() {
+			expect(ab).to.not.be.null;
 
-				});
-			}).to.throw(TypeError);
+			this.app.use(context);
+			this.app.use(ab);
+			this.app.use(function(req, res, next) {
+				var data = ab.of(req);
+				expect(data).to.have.property('a');
+				expect(data).to.have.property('b');
+				expect(data.a).to.have.property('foo', 'bar');
+				expect(data.b).to.have.property('foo', 'baz');
+				next();
+			});
+
+			request(this.app).get('/').end(done);
 		});
 	});
 });
