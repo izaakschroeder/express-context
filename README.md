@@ -32,16 +32,17 @@ var context = contextualize(['foo', 'bar']);
 // Contextualize
 app.use(context);
 
-app.use(context.of(middleware1));
-app.use(context.of(middleware2));
+// Use routes with the give context
+app.use(context.for(middleware1));
+app.use(context.for(middleware2));
 
 // Recover the context
 app.use(function (req, res, next) {
 
-	console.log(context.for(req, middleware1));
+	console.log(context.for(middleware1).of(req));
 	// { foo: 5, bar: 10 }
 
-	console.log(context.for(req, middleware2));
+	console.log(context.for(middleware2).of(req));
 	// { foo: 7, bar: 1 }
 
 	next();
