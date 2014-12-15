@@ -41,14 +41,23 @@ describe('contextualize', function() {
 		}).to.throw(TypeError);
 	});
 
-	it('should fail if the context is not set', function(done) {
+	it('should automatically setup the context', function(done) {
 		var context = contextualize('magic');
 		this.app.use(context.for(function x(req, res, next) {
 			req.magic = 'lol';
 			next();
 		}));
+		this.app.get('/', function(req, res) {
+			res.status(200).send(context.of(req));
+		});
+
 		request(this.app).get('/').expect(function(res) {
-			expect(res.statusCode).to.equal(500);
+			expect(res.statusCode).to.equal(200);
+			expect(res.body).to.deep.equal({
+				x: {
+					magic: 'lol'
+				}
+			});
 		}).end(done);
 	});
 
