@@ -13,7 +13,7 @@
 	"main": "lib/contextualize.js",
 	"scripts": {
 		"test": "npm run lint && npm run spec && npm run coverage",
-		"spec": "NODE_PATH=lib NODE_ENV=test istanbul cover node_modules/.bin/_mocha -- -r test/helpers/chai -R spec test/spec",
+		"spec": "NODE_PATH=lib NODE_ENV=test istanbul cover node_modules/.bin/_mocha -- -r test/helpers/chai -r test/helpers/sinon -R spec test/spec",
 		"lint": "eslint --ignore-path .gitignore .",
 		"coverage": "istanbul check-coverage --statement 100 --branch 100 --function 100"
 	},
@@ -28,6 +28,8 @@
 		"istanbul": "^0.3.2",
 		"chai": "^1.10.0",
 		"supertest": "^0.15.0",
-		"express": "^4.10.4"
+		"express": "^4.10.4",
+		"sinon": "^1.12.2",
+		"sinon-chai": "^2.6.0"
 	}
 }
