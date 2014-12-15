@@ -150,6 +150,28 @@ describe('contextualize', function() {
 		});
 	});
 
+	describe('#mixin', function() {
+		it('should add desired properties', function() {
+			var context = contextualize('foo');
+			var res = context.mixin({
+				bar: 5
+			});
+			expect(res).to.have.property('bar', 5);
+			expect(context).not.to.have.property('bar');
+		});
+
+		it('should invoke the original function', function() {
+			var context = contextualize('foo'), stub = sinon.stub();
+			var res = context.mixin.call(stub, {
+				bar: 5
+			});
+			var req = { id: 1 };
+
+			res(req);
+			expect(stub).to.be.calledWith(req);
+		});
+	});
+
 	describe('#for', function() {
 		it('should return named middleware', function() {
 
