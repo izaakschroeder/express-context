@@ -42,11 +42,15 @@ describe('contextualize', function() {
 	});
 
 	it('should automatically setup the context', function(done) {
-		var context = contextualize('magic');
-		this.app.use(context.for(function x(req, res, next) {
+
+		function x(req, res, next) {
 			req.magic = 'lol';
 			next();
-		}));
+		}
+
+		var context = contextualize('magic');
+		context.set(x, 'x');
+		this.app.use(context.for(x));
 		this.app.get('/', function(req, res) {
 			res.status(200).send(context.of(req));
 		});
@@ -79,22 +83,29 @@ describe('contextualize', function() {
 	});
 
 	it('should produce correct contextualized values after', function(done) {
+
+		function a(req, res, next) {
+			req.foo = 'bananas';
+			next();
+		}
+
+		function b(req, res, next) {
+			req.foo = 'apples';
+			next();
+		}
+
 		var context = contextualize({
 			properties: [ 'foo' ],
 			context: 'bananas'
 		});
 
 		this.app.use(context);
+		context.set(a, 'a');
+		context.set(b, 'b');
 
-		this.app.use(context.for(function a(req, res, next) {
-			req.foo = 'bananas';
-			next();
-		}));
+		this.app.use(context.for(a));
 
-		this.app.use(context.for(function b(req, res, next) {
-			req.foo = 'apples';
-			next();
-		}));
+		this.app.use(context.for(b));
 
 		this.app.get('/', function(req, res) {
 			res.status(200).send(context.of(req));
@@ -114,7 +125,7 @@ describe('contextualize', function() {
 			return function() { };
 		}());
 		context.for(fn);
-		expect(context.get(fn)).to.contain('anon');
+		expect(context.get(fn)).to.contain('middleware_ctx_0');
 	});
 
 	describe('#of', function() {
@@ -173,6 +184,14 @@ describe('contextualize', function() {
 	});
 
 	describe('#for', function() {
+
+		it('it should fail without a function', function() {
+			var context = contextualize('color');
+			expect(function() {
+				context.for(true);
+			}).to.throw(TypeError);
+		});
+
 		it('should return named middleware', function() {
 
 			function test(req, res) {
