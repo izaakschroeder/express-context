@@ -182,8 +182,7 @@ describe('contextualize', function() {
 			var context = contextualize('color');
 
 			expect(context.for(test)).to.be.instanceof(Function);
-			expect(context.get(test)).to.not.be.null;
-
+			expect(context.get(test)).to.be.a('string');
 		});
 
 		it('should inject local values to context chain', function(done) {
