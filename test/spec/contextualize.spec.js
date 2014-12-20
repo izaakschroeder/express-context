@@ -5,6 +5,20 @@ var contextualize = require('contextualize'),
 	express = require('express'),
 	request = require('supertest');
 
+function fn1() {
+
+}
+
+function fn2() {
+
+}
+
+function middleware() {
+	return sinon.spy(function(req, res, next) {
+		next();
+	});
+}
+
 describe('contextualize', function() {
 
 	beforeEach(function() {
@@ -119,15 +133,6 @@ describe('contextualize', function() {
 		}).end(done);
 	});
 
-	it('should generate names for anonymous functions', function() {
-		var context = contextualize('foo');
-		var fn = (function make() {
-			return function() { };
-		}());
-		context.for(fn);
-		expect(context.get(fn)).to.contain('middleware_ctx_0');
-	});
-
 	describe('#of', function() {
 		it('should fail on non-contextualized objects', function() {
 			var context = contextualize('foo');
@@ -183,25 +188,70 @@ describe('contextualize', function() {
 		});
 	});
 
+	describe('#chain', function() {
+		it('should return a function with all current properties', function() {
+			var context = contextualize('foo');
+			context.foo = 5;
+			expect(context.chain(middleware())).to.have.property('foo', 5);
+		});
+
+		it('should return a function with all new properties', function() {
+			var foo = middleware();
+			foo.foo = 1;
+			var context = contextualize('foo');
+			expect(context.chain(foo)).to.have.property('foo', 1);
+		});
+
+		it('should call both functions in order', function() {
+			var context = contextualize('foo'),
+				s1 = middleware(),
+				s2 = middleware(),
+				s3 = sinon.stub();
+			context.chain(s1).chain(s2)({ }, { }, s3);
+			expect(s3).to.be.calledAfter(s2);
+			expect(s2).to.be.calledAfter(s1);
+			expect(s1).to.be.calledOnce;
+		});
+
+		it('should fail when argument is not a function', function() {
+			var context = contextualize('foo');
+			expect(function() {
+				context.chain({ foo: 5 });
+			}).to.throw(TypeError);
+		});
+	});
+
 	describe('#for', function() {
+
+		it('should generate names for functions', function() {
+			var context = contextualize('foo');
+			expect(context.get(context.for(fn1)))
+				.to.contain('middleware_ctx_0');
+		});
+
+		it('should generate no context on arrays', function() {
+			var context = contextualize('foo');
+			expect(context.get(context.for([fn1, fn2]))).to.be.undefined;
+		});
+
+		it('should not update existing functions', function() {
+			var context = contextualize('foo'),
+				fn = middleware();
+			context.for(fn);
+			expect(context.get(fn)).to.be.a.string;
+		});
+
+		it('should return middleware that is already wrapped', function() {
+			var context = contextualize('foo'),
+				fn = context.for(fn1);
+			expect(context.get(context.for(fn))).to.equal(context.get(fn));
+		});
 
 		it('it should fail without a function', function() {
 			var context = contextualize('color');
 			expect(function() {
 				context.for(true);
 			}).to.throw(TypeError);
-		});
-
-		it('should return named middleware', function() {
-
-			function test(req, res) {
-				res.status(200).send();
-			}
-
-			var context = contextualize('color');
-
-			expect(context.for(test)).to.be.instanceof(Function);
-			expect(context.get(test)).to.be.a('string');
 		});
 
 		it('should inject local values to context chain', function(done) {
