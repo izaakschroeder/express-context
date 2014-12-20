@@ -19,7 +19,7 @@
 	},
 	"dependencies": {
 		"lodash": "^2.4.1",
-		"express-async": "^0.1.0"
+		"express-async": "^0.1.2"
 	},
 	"devDependencies": {
 		"eslint": "^0.10.0",
