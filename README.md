@@ -29,8 +29,8 @@ function mw2(req, res, next) {
 
 var context = contextualize(['foo', 'bar']);
 
-var cmw1 = context.for(mw1),
-	cmw2 = context.for(mw2);
+var cmw1 = context.for('a').use(mw1),
+	cmw2 = context.for('b').use(mw2);
 
 app.get('/', cmw1, cmw2, function (req, res, next) {
 
@@ -53,9 +53,8 @@ var context = require('express-context');
 
 var mixins = {
 	ok: function() {
-		var context = this;
-		return this.chain(function(req, res, next) {
-			req.status(200).send(context.of(req));
+		return this.use(function(req, res, next) {
+			req.status(200).send(req.data);
 		});
 	}
 }
@@ -77,27 +76,27 @@ var api = require('api')(),
 	app = require('express')();
 
 app.get('/all', api.ok());
-app.get('/bob', api.for(function(req, res, next) {
+app.get('/bob', api.for('my-consumer').use(function(req, res, next) {
 	req.data = 'bob';
 }).ok());
 ```
 
 ## API
 
-### chain(method)
+### use(method1, method2, ...)
 
-Continue the chain with a new method.
+Continue the chain with a new method. This works just like how it does in `express`.
 
 ```javascript
 // res is now middleware that invokes context AND the new given function
-var res = context.chain(function(req, res, next) {
+var res = context.use(function(req, res, next) {
 	next();
 });
 ```
 
 ### mixin(properties)
 
-Add new properties to the chain.
+Add new properties to the chain. This does _not_ mutate the chain on which it was called.
 
 ```javascript
 // res now has everything in context plus foo = 5
@@ -106,19 +105,17 @@ var res = context.mixin({ foo: 5 });
 
 ### for(middleware)
 
-Get chained middleware representing the contextualized version of the arguments.
+Get chained middleware representing the contextualized version of the arguments. This does not _do_ anything but set the current context.
 
 ```javascript
-// res is a function for the contextualized version of mw1
-// res is also a chain whose context is the context of mw1
-var res = context.for(mw1);
+// res is a chain whose context is 'abc'
+var res = context.for('abc');
 ```
 
 ```javascript
 // res is a function for the parallel execution of contextualized versions of
-// both mw1 and m2.
-// res is also a chain whose context is the context of mw1 and mw2.
-var res = context.for([mw1, mw2]);
+// anything used after it in the chain.
+var res = context.for(['abc', 'def']);
 ```
 
 ### of(request)
@@ -134,7 +131,7 @@ var res = context.of(req);
 ```javascript
 // res is the result of the single context for mw1 that was set during the
 // processing of req.
-var res = context.for(mw1).of(req);
+var res = context.for('abc').of(req);
 ```
 
 [express]: http://expressjs.com/
