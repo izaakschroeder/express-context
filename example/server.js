@@ -22,16 +22,14 @@ function middleware2(req, res, next) {
 
 var context = contextualize(['foo', 'bar']);
 
-app.use(context);
-
-app.use(context.for(middleware1));
-app.use(context.for(middleware2));
+app.use(context.for('a').use(middleware1));
+app.use(context.for('b').use(middleware2));
 
 app.use(function result(req, res) {
 	console.log(context.of(req));
 	res.status(200).send({
-		first: context.for(middleware1).of(req),
-		second: context.for(middleware2).of(req)
+		first: context.for('a').of(req),
+		second: context.for('b').of(req)
 	});
 });
 
