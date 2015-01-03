@@ -5,14 +5,6 @@ var contextualize = require('contextualize'),
 	express = require('express'),
 	request = require('supertest');
 
-function fn1() {
-
-}
-
-function fn2() {
-
-}
-
 function middleware() {
 	return sinon.spy(function(req, res, next) {
 		next();
@@ -63,8 +55,7 @@ describe('contextualize', function() {
 		}
 
 		var context = contextualize('magic');
-		context.set(x, 'x');
-		this.app.use(context.for(x));
+		this.app.use(context.for('x').use(x));
 		this.app.get('/', function(req, res) {
 			res.status(200).send(context.of(req));
 		});
@@ -83,7 +74,7 @@ describe('contextualize', function() {
 		var context = contextualize('foo');
 		this.app.use(context);
 
-		this.app.use(context.for(function a(req, res, next) {
+		this.app.use(context.for('test').use(function a(req, res, next) {
 			req.foo = 'bananas';
 			expect(req.foo).to.equal('bananas');
 			next();
@@ -113,13 +104,8 @@ describe('contextualize', function() {
 			context: 'bananas'
 		});
 
-		this.app.use(context);
-		context.set(a, 'a');
-		context.set(b, 'b');
-
-		this.app.use(context.for(a));
-
-		this.app.use(context.for(b));
+		this.app.use(context.for('a').use(a));
+		this.app.use(context.for('b').use(b));
 
 		this.app.get('/', function(req, res) {
 			res.status(200).send(context.of(req));
@@ -188,18 +174,18 @@ describe('contextualize', function() {
 		});
 	});
 
-	describe('#chain', function() {
+	describe('#use', function() {
 		it('should return a function with all current properties', function() {
 			var context = contextualize('foo');
 			context.foo = 5;
-			expect(context.chain(middleware())).to.have.property('foo', 5);
+			expect(context.use(middleware())).to.have.property('foo', 5);
 		});
 
 		it('should return a function with all new properties', function() {
 			var foo = middleware();
 			foo.foo = 1;
 			var context = contextualize('foo');
-			expect(context.chain(foo)).to.have.property('foo', 1);
+			expect(context.use(foo)).to.have.property('foo', 1);
 		});
 
 		it('should call both functions in order', function() {
@@ -207,7 +193,7 @@ describe('contextualize', function() {
 				s1 = middleware(),
 				s2 = middleware(),
 				s3 = sinon.stub();
-			context.chain(s1).chain(s2)({ }, { }, s3);
+			context.use(s1).use(s2)({ }, { }, s3);
 			expect(s3).to.be.calledAfter(s2);
 			expect(s2).to.be.calledAfter(s1);
 			expect(s1).to.be.calledOnce;
@@ -216,41 +202,23 @@ describe('contextualize', function() {
 		it('should fail when argument is not a function', function() {
 			var context = contextualize('foo');
 			expect(function() {
-				context.chain({ foo: 5 });
+				context.use({ foo: 5 });
 			}).to.throw(TypeError);
 		});
 	});
 
 	describe('#for', function() {
 
-		it('should generate names for functions', function() {
-			var context = contextualize('foo');
-			expect(context.get(context.for(fn1)))
-				.to.contain('middleware_ctx_0');
-		});
-
 		it('should generate no context on arrays', function() {
 			var context = contextualize('foo');
-			expect(context.get(context.for([fn1, fn2]))).to.be.undefined;
+			expect(context.for(['a', 'b']).context)
+				.to.deep.equal(['a', 'b']);
 		});
 
-		it('should not update existing functions', function() {
-			var context = contextualize('foo'),
-				fn = middleware();
-			context.for(fn);
-			expect(context.get(fn)).to.be.a.string;
-		});
-
-		it('should return middleware that is already wrapped', function() {
-			var context = contextualize('foo'),
-				fn = context.for(fn1);
-			expect(context.get(context.for(fn))).to.equal(context.get(fn));
-		});
-
-		it('it should fail without a function', function() {
+		it('it should fail on functions', function() {
 			var context = contextualize('color');
 			expect(function() {
-				context.for(true);
+				context.for(function() { });
 			}).to.throw(TypeError);
 		});
 
@@ -263,10 +231,7 @@ describe('contextualize', function() {
 
 			var context = contextualize('color');
 
-			context.set(test, 'myfoo');
-
-			this.app.use(context);
-			this.app.use(context.for(test));
+			this.app.use(context.for('myfoo').use(test));
 			this.app.use(function(req, res, next) {
 				var data = context.of(req);
 				expect(data).to.have.property('myfoo');
@@ -293,7 +258,7 @@ describe('contextualize', function() {
 			}
 
 			var context = contextualize('foo'),
-				ab = context.for([a, b]);
+				ab = context.for('a', 'b').use(a, b);
 
 			expect(ab).to.not.be.null;
 
@@ -303,7 +268,7 @@ describe('contextualize', function() {
 				var data = ab.of(req);
 				expect(data).to.have.property('a');
 				expect(data).to.have.property('b');
-				expect(data.a).to.have.property('foo', 'bar');
+				expect(data.a).to.have.property('foo', 'baz');
 				expect(data.b).to.have.property('foo', 'baz');
 				next();
 			});
